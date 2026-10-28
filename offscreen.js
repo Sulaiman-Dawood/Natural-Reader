@@ -101,7 +101,7 @@ function removeTailBurst(data, sr, end, words) {
   return durMs <= 400 && gapMs >= 250 ? (pe + 1) * frame : end;
 }
 
-function processBuffer(buf, trimEndMs, words) {
+function processBuffer(buf, words) {
   const sr = buf.sampleRate, nch = buf.numberOfChannels;
   const data = [];
   for (let c = 0; c < nch; c++) data.push(buf.getChannelData(c));
@@ -118,7 +118,6 @@ function processBuffer(buf, trimEndMs, words) {
   }
   end = removeTailBurst(data, sr, end, words || 0);
   end = Math.min(buf.length, end + Math.round(sr * 0.04));
-  end = Math.max(win * 4, end - Math.round(sr * (Number(trimEndMs) || 0) / 1000));
   const fadeIn = Math.min(end, Math.round(sr * 0.006));
   const fadeOut = Math.min(end, Math.round(sr * 0.05));
   const total = end + Math.round(sr * 0.08);
@@ -154,7 +153,7 @@ async function cleanBlob(blob, s, words) {
   try {
     decoderCtx = decoderCtx || new OfflineAudioContext(1, 1, 48000);
     const buf = await decoderCtx.decodeAudioData(await blob.arrayBuffer());
-    return encodeWav(processBuffer(buf, s.trimEnd, words));
+    return encodeWav(processBuffer(buf, words));
   } catch (e) {
     return blob;
   }
@@ -192,7 +191,9 @@ async function speak(text, s) {
     const r = await fetch(url, {
       method: "POST",
       signal: ctl.signal,
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.apiKey },
+      headers: s.apiKey
+        ? { "Content-Type": "application/json", Authorization: "Bearer " + s.apiKey }
+        : { "Content-Type": "application/json" },
       body: JSON.stringify({ model: s.model, input, voice: s.voice, response_format: s.format })
     });
     if (!r.ok) throw new Error(r.status + " " + (await r.text()).slice(0, 400));

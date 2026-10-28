@@ -15,7 +15,6 @@ const PRESETS = {
     voice: "hannah",
     format: "wav",
     maxChars: 200,
-    trimEnd: 0,
     voices: [
       { name: "autumn", tag: "Female" }, { name: "diana", tag: "Female" }, { name: "hannah", tag: "Female" },
       { name: "austin", tag: "Male" }, { name: "daniel", tag: "Male" }, { name: "troy", tag: "Male" }
@@ -30,7 +29,6 @@ const PRESETS = {
     voice: "Kore",
     format: "wav",
     maxChars: 1000,
-    trimEnd: 0,
     voices: GEMINI_VOICES,
     keyUrl: "https://aistudio.google.com/apikey"
   },
@@ -41,7 +39,6 @@ const PRESETS = {
     voice: "Orus",
     format: "mp3",
     maxChars: 800,
-    trimEnd: 0,
     voices: GEMINI_VOICES,
     keyUrl: "https://openrouter.ai/settings/keys"
   },
@@ -52,9 +49,26 @@ const PRESETS = {
     voice: "alloy",
     format: "mp3",
     maxChars: 3000,
-    trimEnd: 0,
     voices: ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"].map((name) => ({ name, tag: "" })),
     keyUrl: "https://platform.openai.com/api-keys"
+  },
+  local: {
+    label: "Local",
+    noKey: true,
+    baseUrl: "http://localhost:8880/v1",
+    model: "kokoro",
+    voice: "af_heart",
+    format: "mp3",
+    maxChars: 1000,
+    voices: [
+      { name: "af_heart", tag: "American female" }, { name: "af_bella", tag: "American female" },
+      { name: "af_nicole", tag: "American female" }, { name: "af_sarah", tag: "American female" },
+      { name: "af_sky", tag: "American female" }, { name: "am_adam", tag: "American male" },
+      { name: "am_michael", tag: "American male" }, { name: "bf_emma", tag: "British female" },
+      { name: "bf_isabella", tag: "British female" }, { name: "bm_george", tag: "British male" },
+      { name: "bm_lewis", tag: "British male" }
+    ],
+    keyUrl: ""
   },
   custom: {
     label: "Custom",
@@ -63,7 +77,6 @@ const PRESETS = {
     voice: "",
     format: "mp3",
     maxChars: 1000,
-    trimEnd: 0,
     voices: [],
     keyUrl: ""
   }

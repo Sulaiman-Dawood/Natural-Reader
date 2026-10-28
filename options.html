@@ -79,7 +79,7 @@
 <body>
 <main>
   <h1>Natural Reader</h1>
-  <p class="lede">Read any selected text aloud using your own text-to-speech key.</p>
+  <p class="lede">Read any selected text aloud using your own text-to-speech key or a local model.</p>
 
   <div id="strip" data-state="idle"><i class="dot"></i><span id="stripText">Ready.</span></div>
 
@@ -88,7 +88,7 @@
       <legend>Provider</legend>
       <div class="seg" id="providers"></div>
 
-      <label class="field">
+      <label class="field" id="keyRow">
         <b>API key</b>
         <div class="keyrow">
           <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
@@ -96,6 +96,7 @@
         </div>
         <div class="hint" id="keyHint"></div>
       </label>
+      <p class="hint" id="localHint" hidden>Runs on your computer, so no key is needed and your text never leaves it. Start a local voice server such as <a href="https://github.com/remsky/Kokoro-FastAPI" target="_blank" rel="noreferrer">Kokoro-FastAPI</a>, then check the address under Advanced.</p>
     </fieldset>
 
     <fieldset>
@@ -132,8 +133,6 @@
       <label class="field"><b>Model</b><input id="model" type="text" spellcheck="false"></label>
       <label class="field" id="formatRow"><b>Audio format</b><input id="format" type="text" spellcheck="false">
         <span class="hint">wav for Groq. mp3 for most others.</span></label>
-      <label class="field"><b>Trim end of each clip (ms)</b><input id="trimEnd" type="number" min="0" max="1000" step="10">
-        <span class="hint">Cuts the end of every clip. If you still hear a noise after the speech, try 250.</span></label>
       <label class="field"><b>Characters per request</b><input id="maxChars" type="number" min="50" max="4000">
         <span class="hint">Longer text is split into pieces this size and played in order.</span></label>
     </details>

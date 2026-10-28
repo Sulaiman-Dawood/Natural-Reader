@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["apiKey", "baseUrl", "model", "voice", "format", "maxChars", "trimEnd"];
+const FIELDS = ["apiKey", "baseUrl", "model", "voice", "format", "maxChars"];
 let store, current, shown = [], activeIdx = 0;
 
 function buildProviders() {
@@ -22,7 +22,6 @@ function readForm() {
   const o = {};
   FIELDS.forEach((f) => (o[f] = $(f).value.trim()));
   o.maxChars = Number(o.maxChars) || PRESETS[current].maxChars;
-  o.trimEnd = Math.max(0, Number(o.trimEnd) || 0);
   return o;
 }
 
@@ -30,6 +29,8 @@ function fillForm() {
   const p = profileFor(store, current);
   FIELDS.forEach((f) => ($(f).value = p[f]));
   document.querySelector(`input[name=provider][value=${current}]`).checked = true;
+  $("keyRow").style.display = PRESETS[current].noKey ? "none" : "";
+  $("localHint").hidden = !PRESETS[current].noKey;
   $("formatRow").style.display = PRESETS[current].kind === "gemini" ? "none" : "";
   const url = PRESETS[current].keyUrl;
   $("keyHint").innerHTML = url
@@ -42,7 +43,22 @@ function fillForm() {
 }
 
 /* ---------- narrator picker ---------- */
-const voices = () => PRESETS[current].voices;
+const live = {};
+const voices = () => live[current] || PRESETS[current].voices;
+
+async function loadLiveVoices() {
+  const key = current;
+  if (!PRESETS[key].noKey) return;
+  try {
+    const base = $("baseUrl").value.trim().replace(/\/+$/, "");
+    const r = await fetch(base + "/audio/voices");
+    if (!r.ok) return;
+    const j = await r.json();
+    const names = (j.voices || []).map((v) => (typeof v === "string" ? v : v.name || v.id)).filter(Boolean);
+    if (names.length)
+      live[key] = names.map((name) => ({ name, tag: (PRESETS.local.voices.find((x) => x.name === name) || {}).tag || "" }));
+  } catch (e) { /* server not running: keep the built-in list */ }
+}
 
 function renderVoiceButton() {
   const name = $("voice").value;
@@ -58,6 +74,7 @@ function openPanel() {
   $("voiceOther").value = "";
   renderList();
   $("voiceFilter").focus();
+  loadLiveVoices().then(() => { if (!$("voicePanel").hidden) renderList(); });
 }
 
 function closePanel() {
@@ -119,7 +136,7 @@ function choose(name) {
 }
 
 function preview(name) {
-  const override = { ...readForm(), voice: name, kind: PRESETS[current].kind };
+  const override = { ...readForm(), voice: name, kind: PRESETS[current].kind, noKey: PRESETS[current].noKey };
   chrome.runtime.sendMessage({
     target: "background", type: "read",
     text: `Hi, I'm ${name}. This is how I sound.`, override

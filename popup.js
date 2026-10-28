@@ -26,7 +26,7 @@ chrome.storage.local.get({ lastStatus: null }).then((s) => render(s.lastStatus))
 chrome.storage.onChanged.addListener((c) => { if (c.lastStatus) render(c.lastStatus.newValue); });
 
 loadSettings().then((s) => {
-  $("meta").textContent = s.apiKey
+  $("meta").textContent = (s.apiKey || s.noKey)
     ? `Using ${PRESETS[s.provider].label}, voice ${s.voice || "default"}`
     : "No API key yet. Add one in Settings.";
 });

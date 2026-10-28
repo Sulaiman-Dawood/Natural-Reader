@@ -9,7 +9,7 @@ function friendlyError(raw) {
   if (/^403/.test(m)) return "The key was accepted but isn't allowed to use this model. Check the key's project and access. Details: " + m.slice(0, 200);
   if (/^404/.test(m)) return "Endpoint or model not found. Check the base URL and model under Advanced. Details: " + m.slice(0, 200);
   if (/^429/.test(m)) return "Rate limit reached. Wait a moment, then try again.";
-  if (/Failed to fetch/i.test(m)) return "Could not reach the server. Check your connection and the base URL.";
+  if (/Failed to fetch/i.test(m)) return "Could not reach the server. Check your connection and the base URL. For a local model, make sure its server is running.";
   return m.slice(0, 300);
 }
 
@@ -72,7 +72,7 @@ async function readText(text, override) {
   text = (text || "").trim();
   if (!text) return setStatus("error", "Select some text first.");
   const settings = { ...(await loadSettings()), ...(override || {}) };
-  if (!settings.apiKey) return setStatus("error", "Add your API key in Settings first.");
+  if (!settings.apiKey && !settings.noKey) return setStatus("error", "Add your API key in Settings first.");
   if (!settings.baseUrl || !settings.model) return setStatus("error", "Base URL and model are required. See Settings > Advanced.");
   await setStatus("loading");
   try {
