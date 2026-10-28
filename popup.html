@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { width: 320px; background: var(--surface); }
+  main { padding: 14px; }
+  .display { background: var(--display); color: var(--display-ink); border-radius: 12px; padding: 14px 16px 16px; }
+  #status { margin: 8px 0 0; text-align: center; min-height: 3em; overflow-wrap: anywhere; user-select: text; }
+  [data-state="error"] #status { color: #ff9aa1; text-align: left; }
+  #meta { margin: 10px 2px 0; color: var(--muted); font-size: 12.5px; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .row button { white-space: nowrap; padding: 9px 12px; }
+  .row #read { flex: 2; }
+  .row #stop { flex: 1; }
+  footer { margin-top: 12px; text-align: center; }
+  footer a { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main id="root" data-state="idle">
+  <section class="display">
+    <div class="wave" id="wave" aria-hidden="true"></div>
+    <p id="status" role="status" aria-live="polite"></p>
+  </section>
+  <p id="meta"></p>
+  <div class="row">
+    <button id="read" class="primary">Read aloud</button>
+    <button id="stop">Stop</button>
+  </div>
+  <footer><a href="#" id="settings">Settings</a></footer>
+</main>
+<script src="shared.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

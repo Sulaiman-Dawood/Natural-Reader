@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Natural Reader",
+  "version": "1.4.1",
+  "description": "Read selected text aloud with your own Groq, OpenRouter, OpenAI or custom text-to-speech API key.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://api.groq.com/*",
+    "https://openrouter.ai/*",
+    "https://api.openai.com/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Natural Reader",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_page": "options.html",
+  "commands": {
+    "read-selection": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Read selected text (or the whole page) aloud"
+    },
+    "stop-reading": {
+      "suggested_key": {
+        "default": "Alt+Shift+X"
+      },
+      "description": "Stop reading"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
