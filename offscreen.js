@@ -72,6 +72,19 @@ async function fetchGemini(s, input, signal) {
   return pcmToWav(pcm, rate);
 }
 
+async function fetchElevenLabs(s, input, signal) {
+  const url = s.baseUrl.replace(/\/+$/, "") + "/text-to-speech/" + encodeURIComponent(s.voice) +
+    "?output_format=" + encodeURIComponent(s.format || "mp3_44100_128");
+  const r = await fetch(url, {
+    method: "POST",
+    signal,
+    headers: { "Content-Type": "application/json", "xi-api-key": s.apiKey },
+    body: JSON.stringify({ text: input, model_id: s.model })
+  });
+  if (!r.ok) throw new Error(r.status + " " + (await r.text()).slice(0, 400));
+  return r.blob();
+}
+
 let decoderCtx = null;
 
 function removeTailBurst(data, sr, end, words) {
@@ -188,6 +201,7 @@ async function speak(text, s) {
 
   const fetchChunk = async (input) => {
     if (s.kind === "gemini") return fetchGemini(s, input, ctl.signal);
+    if (s.kind === "elevenlabs") return fetchElevenLabs(s, input, ctl.signal);
     const r = await fetch(url, {
       method: "POST",
       signal: ctl.signal,
