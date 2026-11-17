@@ -1,401 +1,381 @@
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["apiKey", "baseUrl", "model", "voice", "format", "maxChars"];
-let store, current, shown = [], activeIdx = 0;
+const ICON = {
+  chevron: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>'
+};
 
-/* ---------- provider picker ---------- */
-let shownP = [], activeP = 0;
+let store;         // everything saved in chrome.storage.local
+let current;       // the selected provider's id
+let profile;       // the selected provider's editable settings
+let running = false;
+const live = {};   // voices fetched from the provider, by provider id
 
-function renderProviderButton() {
-  const p = PRESETS[current];
-  $("providerName").textContent = p.label;
-  $("providerTag").textContent = p.desc || "";
+const preset = () => PRESETS[current];
+const voices = () => (live[current] || preset().voices).map((v) => ({ id: v.id || v.name, name: v.name, tag: v.tag || "" }));
+const models = () => (preset().models || []).map((m) => ({ id: m.id, name: m.name, tag: m.tag || "" }));
+
+/* ---------- saving ---------- */
+
+let saveTimer = null;
+function save(delay = 300) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, delay);
 }
 
-function openProviderPanel() {
-  $("providerPanel").hidden = false;
-  $("providerBtn").setAttribute("aria-expanded", "true");
-  $("providerFilter").value = "";
-  renderProviderList();
-  $("providerFilter").focus();
-}
-
-function closeProviderPanel() {
-  if ($("providerPanel").hidden) return;
-  $("providerPanel").hidden = true;
-  $("providerBtn").setAttribute("aria-expanded", "false");
-}
-
-function renderProviderList() {
-  const q = $("providerFilter").value.trim().toLowerCase();
-  shownP = Object.entries(PRESETS).filter(([id, p]) => !q || p.label.toLowerCase().includes(q) || (p.desc || "").toLowerCase().includes(q));
-  const ul = $("providerList");
-  ul.innerHTML = "";
-  if (!shownP.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "No match.";
-    ul.appendChild(li);
-    return;
-  }
-  shownP.forEach(([id, p], i) => {
-    const li = document.createElement("li");
-    li.id = "provider-" + i;
-    li.setAttribute("role", "option");
-    li.setAttribute("aria-selected", String(id === current));
-    li.innerHTML = '<span class="vn"></span><span class="vt"></span>';
-    li.querySelector(".vn").textContent = p.label;
-    li.querySelector(".vt").textContent = p.desc || "";
-    li.onmousedown = (e) => e.preventDefault();
-    li.onclick = () => chooseProvider(id);
-    li.onmousemove = () => setActiveProvider(i, false);
-    ul.appendChild(li);
+async function saveNow() {
+  clearTimeout(saveTimer);
+  store.profiles[current] = Object.fromEntries(FIELDS.map((f) => [f, profile[f]]));
+  await chrome.storage.local.set({
+    provider: current, speed: store.speed, profiles: store.profiles, underline: store.underline, follow: store.follow
   });
-  const sel = shownP.findIndex(([id]) => id === current);
-  setActiveProvider(sel >= 0 ? sel : 0, true);
+  const t = $("toast");
+  t.classList.add("on");
+  clearTimeout(t.timer);
+  t.timer = setTimeout(() => t.classList.remove("on"), 1400);
 }
 
-function setActiveProvider(i, scroll) {
-  activeP = Math.max(0, Math.min(shownP.length - 1, i));
-  [...$("providerList").children].forEach((li, n) => li.classList.toggle("active", n === activeP));
-  const li = $("providerList").children[activeP];
-  if (li && shownP.length) {
-    $("providerFilter").setAttribute("aria-activedescendant", li.id);
-    if (scroll) li.scrollIntoView({ block: "nearest" });
+/* ---------- access to custom addresses ---------- */
+
+const originOf = (url) => {
+  try {
+    const u = new URL(url);
+    return /^https?:$/.test(u.protocol) ? u.origin : null;
+  } catch (e) {
+    return null;
   }
+};
+
+// Built-in providers are allowed by manifest.json. Any other address (Custom, or a voice server on
+// another computer) needs the user's OK, which Chrome only asks for during a click. It resolves
+// right away, without a prompt, if access is already granted.
+function requestHostAccess() {
+  const origin = originOf(profile.baseUrl);
+  if (!origin) return Promise.resolve(true);
+  return chrome.permissions.request({ origins: [origin + "/*"] }).catch(() => false);
 }
 
-function chooseProvider(id) {
-  closeProviderPanel();
-  $("providerBtn").focus();
-  if (id === current) return;
-  store.profiles[current] = readForm();
-  current = id;
-  closePanel();
-  closeModelPanel();
-  fillForm();
+async function checkAccess() {
+  const origin = originOf(profile.baseUrl);
+  const ok = !origin || (await chrome.permissions.contains({ origins: [origin + "/*"] }).catch(() => true));
+  $("accessBanner").hidden = ok;
+  if (!ok) $("accessText").textContent = `Natural Reader needs your permission to contact ${new URL(origin).host}.`;
 }
 
-function buildProviders() {
-  $("providerBtn").onclick = () => ($("providerPanel").hidden ? openProviderPanel() : closeProviderPanel());
-  $("providerBtn").onkeydown = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); openProviderPanel(); } };
-  $("providerFilter").oninput = renderProviderList;
-  $("providerFilter").onkeydown = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveProvider(activeP + 1, true); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveProvider(activeP - 1, true); }
-    else if (e.key === "Home") { e.preventDefault(); setActiveProvider(0, true); }
-    else if (e.key === "End") { e.preventDefault(); setActiveProvider(shownP.length - 1, true); }
-    else if (e.key === "Enter") { e.preventDefault(); if (shownP[activeP]) chooseProvider(shownP[activeP][0]); }
-    else if (e.key === "Escape") { e.preventDefault(); closeProviderPanel(); $("providerBtn").focus(); }
-  };
-  document.addEventListener("mousedown", (e) => { if (!$("providerPicker").contains(e.target)) closeProviderPanel(); });
-}
+/* ---------- searchable picker (models and voices) ---------- */
 
-function readForm() {
-  const o = {};
-  FIELDS.forEach((f) => (o[f] = $(f).value.trim()));
-  o.maxChars = Number(o.maxChars) || PRESETS[current].maxChars;
-  return o;
-}
+// Builds a dropdown with search, keyboard navigation and a box for typing your own value.
+function createPicker(host, { labelId, placeholder, otherText, emptyText, items, value, onChoose, onPreview, onOpen }) {
+  const uid = host.id;
+  host.className = "picker";
+  host.innerHTML = `
+    <button type="button" class="pickbtn" id="${uid}-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="${labelId} ${uid}-btn">
+      <span class="pn"></span><span class="pt"></span>${ICON.chevron}
+    </button>
+    <div class="pop" hidden>
+      <input type="search" class="pop-search" placeholder="${placeholder}" autocomplete="off" spellcheck="false"
+             role="combobox" aria-expanded="true" aria-controls="${uid}-list" aria-autocomplete="list">
+      <ul class="pop-list" id="${uid}-list" role="listbox" aria-labelledby="${labelId}"></ul>
+      <div class="pop-other"><input type="text" class="input" placeholder="${otherText}" autocomplete="off" spellcheck="false"></div>
+    </div>`;
+  const btn = host.querySelector(".pickbtn"), pop = host.querySelector(".pop");
+  const search = host.querySelector(".pop-search"), list = host.querySelector(".pop-list");
+  const other = host.querySelector(".pop-other input");
+  let shown = [], active = 0;
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 
-function fillForm() {
-  const p = profileFor(store, current);
-  FIELDS.forEach((f) => ($(f).value = p[f]));
-  renderProviderButton();
-  $("keyRow").style.display = PRESETS[current].noKey ? "none" : "";
-  $("localHint").hidden = !PRESETS[current].noKey;
-  $("formatRow").style.display = PRESETS[current].kind === "gemini" ? "none" : "";
-  const url = PRESETS[current].keyUrl;
-  $("keyHint").innerHTML = url
-    ? `Get a key at <a href="${url}" target="_blank" rel="noreferrer">${new URL(url).host}</a>. Stored only in this browser.`
-    : "Stored only in this browser.";
-
-  const hasModels = (PRESETS[current].models || []).length > 0;
-  $("modelPicker").hidden = !hasModels;
-  $("model").style.display = hasModels ? "none" : "";
-  renderModelButton();
-  const hasList = PRESETS[current].voices.length > 0;
-  $("picker").hidden = !hasList;
-  $("voice").style.display = hasList ? "none" : "";
-  renderVoiceButton();
-}
-
-
-/* ---------- model picker ---------- */
-let shownM = [], activeM = 0;
-const models = () => PRESETS[current].models || [];
-
-function renderModelButton() {
-  const id = $("model").value;
-  const known = models().find((m) => m.id === id);
-  $("modelName").textContent = known ? known.name : id || "Choose a model";
-  $("modelTag").textContent = known ? known.tag : id ? "Custom" : "";
-}
-
-function openModelPanel() {
-  $("modelPanel").hidden = false;
-  $("modelBtn").setAttribute("aria-expanded", "true");
-  $("modelFilter").value = "";
-  $("modelOther").value = "";
-  renderModelList();
-  $("modelFilter").focus();
-}
-
-function closeModelPanel() {
-  if ($("modelPanel").hidden) return;
-  $("modelPanel").hidden = true;
-  $("modelBtn").setAttribute("aria-expanded", "false");
-}
-
-function renderModelList() {
-  const q = $("modelFilter").value.trim().toLowerCase();
-  const cur = $("model").value;
-  shownM = models().filter((m) => !q || m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q) || m.tag.toLowerCase().includes(q));
-  const ul = $("modelList");
-  ul.innerHTML = "";
-  if (!shownM.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "No match. Type a custom model ID below.";
-    ul.appendChild(li);
-    return;
+  function refresh() {
+    const v = value(), known = items().find((it) => same(it.id, v));
+    btn.querySelector(".pn").textContent = known ? known.name : v || "Choose…";
+    btn.querySelector(".pt").textContent = known ? known.tag : v ? "Custom" : "";
   }
-  shownM.forEach((m, i) => {
-    const li = document.createElement("li");
-    li.id = "model-" + i;
-    li.setAttribute("role", "option");
-    li.setAttribute("aria-selected", String(m.id === cur));
-    li.innerHTML = '<span class="vn"></span><span class="vt"></span>';
-    li.querySelector(".vn").textContent = m.name;
-    li.querySelector(".vt").textContent = m.tag;
-    li.onmousedown = (e) => e.preventDefault();
-    li.onclick = () => chooseModel(m.id);
-    li.onmousemove = () => setActiveModel(i, false);
-    ul.appendChild(li);
-  });
-  const sel = shownM.findIndex((m) => m.id === cur);
-  setActiveModel(sel >= 0 ? sel : 0, true);
-}
 
-function setActiveModel(i, scroll) {
-  activeM = Math.max(0, Math.min(shownM.length - 1, i));
-  [...$("modelList").children].forEach((li, n) => li.classList.toggle("active", n === activeM));
-  const li = $("modelList").children[activeM];
-  if (li && shownM.length) {
-    $("modelFilter").setAttribute("aria-activedescendant", li.id);
-    if (scroll) li.scrollIntoView({ block: "nearest" });
+  function render() {
+    const q = search.value.trim().toLowerCase();
+    shown = items().filter((it) => !q || [it.id, it.name, it.tag].some((x) => x.toLowerCase().includes(q)));
+    list.replaceChildren();
+    if (!shown.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = items().length ? "No match. Type your own below." : emptyText;
+      list.append(li);
+      return;
+    }
+    shown.forEach((it, i) => {
+      const li = document.createElement("li");
+      li.id = `${uid}-opt-${i}`;
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", String(same(it.id, value())));
+      li.innerHTML = '<span class="vn"></span><span class="vt"></span>';
+      li.querySelector(".vn").textContent = it.name;
+      li.querySelector(".vt").textContent = it.tag;
+      if (onPreview) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "vp";
+        b.innerHTML = ICON.play + "<span>Preview</span>";
+        b.setAttribute("aria-label", "Preview " + it.name);
+        b.onclick = (e) => { e.stopPropagation(); onPreview(it); };
+        li.append(b);
+      }
+      li.onmousedown = (e) => e.preventDefault();
+      li.onclick = () => choose(it.id);
+      li.onmousemove = () => setActive(i, false);
+      list.append(li);
+    });
+    const sel = shown.findIndex((it) => same(it.id, value()));
+    setActive(sel >= 0 ? sel : 0, true);
   }
-}
 
-function chooseModel(id) {
-  if (!id) return;
-  $("model").value = id;
-  renderModelButton();
-  closeModelPanel();
-  $("modelBtn").focus();
-}
+  function setActive(i, scroll) {
+    active = Math.max(0, Math.min(shown.length - 1, i));
+    [...list.children].forEach((li, n) => li.classList.toggle("active", n === active));
+    const li = list.children[active];
+    if (li && shown.length) {
+      search.setAttribute("aria-activedescendant", li.id);
+      if (scroll) li.scrollIntoView({ block: "nearest" });
+    }
+  }
 
-function wireModelPicker() {
-  $("modelBtn").onclick = () => ($("modelPanel").hidden ? openModelPanel() : closeModelPanel());
-  $("modelBtn").onkeydown = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); openModelPanel(); } };
-  $("modelFilter").oninput = renderModelList;
-  $("modelFilter").onkeydown = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveModel(activeM + 1, true); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveModel(activeM - 1, true); }
-    else if (e.key === "Home") { e.preventDefault(); setActiveModel(0, true); }
-    else if (e.key === "End") { e.preventDefault(); setActiveModel(shownM.length - 1, true); }
-    else if (e.key === "Enter") { e.preventDefault(); if (shownM[activeM]) chooseModel(shownM[activeM].id); }
-    else if (e.key === "Escape") { e.preventDefault(); closeModelPanel(); $("modelBtn").focus(); }
+  function open() {
+    pop.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    search.value = other.value = "";
+    render();
+    search.focus();
+    if (onOpen) onOpen().then(() => { if (!pop.hidden) render(); });
+  }
+
+  function close(focusButton) {
+    if (pop.hidden) return;
+    pop.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+    if (focusButton) btn.focus();
+  }
+
+  function choose(id) {
+    id = (id || "").trim();
+    if (!id) return;
+    onChoose(id);
+    refresh();
+    close(true);
+  }
+
+  btn.onclick = () => (pop.hidden ? open() : close(false));
+  btn.onkeydown = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); open(); } };
+  search.oninput = render;
+  search.onkeydown = (e) => {
+    const keys = {
+      ArrowDown: () => setActive(active + 1, true),
+      ArrowUp: () => setActive(active - 1, true),
+      Home: () => setActive(0, true),
+      End: () => setActive(shown.length - 1, true),
+      Enter: () => shown[active] && choose(shown[active].id),
+      Escape: () => close(true)
+    };
+    if (keys[e.key]) { e.preventDefault(); keys[e.key](); }
   };
-  $("modelOther").onkeydown = (e) => {
-    if (e.key === "Enter") { e.preventDefault(); chooseModel($("modelOther").value.trim()); }
-    if (e.key === "Escape") { e.preventDefault(); closeModelPanel(); $("modelBtn").focus(); }
+  other.onkeydown = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); choose(other.value); }
+    if (e.key === "Escape") { e.preventDefault(); close(true); }
   };
-  document.addEventListener("mousedown", (e) => { if (!$("modelPicker").contains(e.target)) closeModelPanel(); });
+  document.addEventListener("mousedown", (e) => { if (!host.contains(e.target)) close(false); });
+
+  return { refresh, close };
 }
 
-/* ---------- narrator picker ---------- */
-const vid = (v) => v.id || v.name;
-const live = {};
-const voices = () => live[current] || PRESETS[current].voices;
+/* ---------- live voice lists ---------- */
 
 async function loadLiveVoices() {
-  const key = current;
-  if (PRESETS[key].kind === "elevenlabs") {
-    const apiKey = $("apiKey").value.trim();
-    if (!apiKey) return;
-    try {
-      const base = $("baseUrl").value.trim().replace(/\/+$/, "");
-      const r = await fetch(base + "/voices", { headers: { "xi-api-key": apiKey } });
+  const key = current, p = PRESETS[key], base = (profile.baseUrl || "").replace(/\/+$/, "");
+  try {
+    if (p.kind === "elevenlabs") {
+      if (!profile.apiKey) return;
+      const r = await fetch(base + "/voices", { headers: { "xi-api-key": profile.apiKey } });
       if (!r.ok) return;
-      const j = await r.json();
-      const found = (j.voices || []).filter((v) => v.voice_id && v.name).map((v) => ({
+      const found = ((await r.json()).voices || []).filter((v) => v.voice_id && v.name).map((v) => ({
         name: v.name, id: v.voice_id,
         tag: Object.values(v.labels || {}).slice(0, 3).join(", ") || v.category || ""
       }));
       if (found.length) live[key] = found;
-    } catch (e) { /* offline or bad key: keep the built-in list */ }
-    return;
-  }
-  if (!PRESETS[key].noKey) return;
-  try {
-    const base = $("baseUrl").value.trim().replace(/\/+$/, "");
-    const r = await fetch(base + "/audio/voices");
-    if (!r.ok) return;
-    const j = await r.json();
-    const names = (j.voices || []).map((v) => (typeof v === "string" ? v : v.name || v.id)).filter(Boolean);
-    if (names.length)
-      live[key] = names.map((name) => ({ name, tag: (PRESETS.local.voices.find((x) => x.name === name) || {}).tag || "" }));
-  } catch (e) { /* server not running: keep the built-in list */ }
+    } else if (p.noKey) {
+      const r = await fetch(base + "/audio/voices");
+      if (!r.ok) return;
+      const names = ((await r.json()).voices || []).map((v) => (typeof v === "string" ? v : v.name || v.id)).filter(Boolean);
+      if (names.length) live[key] = names.map((name) => ({ name, tag: (p.voices.find((x) => x.name === name) || {}).tag || "" }));
+    }
+  } catch (e) { /* offline, bad key or server not running: keep the built-in list */ }
 }
 
-function renderVoiceButton() {
-  const name = $("voice").value;
-  const known = voices().find((v) => vid(v).toLowerCase() === name.toLowerCase());
-  $("voiceName").textContent = known ? known.name : name || "Choose a voice";
-  $("voiceTag").textContent = known ? known.tag : name ? "Custom" : "";
-}
+/* ---------- form ---------- */
 
-function openPanel() {
-  $("voicePanel").hidden = false;
-  $("voiceBtn").setAttribute("aria-expanded", "true");
-  $("voiceFilter").value = "";
-  $("voiceOther").value = "";
-  renderList();
-  $("voiceFilter").focus();
-  loadLiveVoices().then(() => { if (!$("voicePanel").hidden) renderList(); });
-}
+let modelPicker, voicePicker;
 
-function closePanel() {
-  if ($("voicePanel").hidden) return;
-  $("voicePanel").hidden = true;
-  $("voiceBtn").setAttribute("aria-expanded", "false");
-}
-
-function renderList() {
-  const q = $("voiceFilter").value.trim().toLowerCase();
-  const cur = $("voice").value.toLowerCase();
-  shown = voices().filter((v) => !q || vid(v).toLowerCase().includes(q) || v.name.toLowerCase().includes(q) || (v.tag || "").toLowerCase().includes(q));
-  const ul = $("voiceList");
-  ul.innerHTML = "";
-  if (!shown.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "No match. Type a custom name below.";
-    ul.appendChild(li);
-    return;
-  }
-  shown.forEach((v, i) => {
-    const li = document.createElement("li");
-    li.id = "voice-" + i;
-    li.setAttribute("role", "option");
-    li.setAttribute("aria-selected", String(vid(v).toLowerCase() === cur));
-    li.innerHTML = '<span class="vn"></span><span class="vt"></span><button type="button" class="vp"></button>';
-    li.querySelector(".vn").textContent = v.name;
-    li.querySelector(".vt").textContent = v.tag || "";
-    const pv = li.querySelector(".vp");
-    pv.textContent = "▶ Preview";
-    pv.setAttribute("aria-label", "Preview " + v.name);
-    pv.onclick = (e) => { e.stopPropagation(); preview(vid(v)); };
-    li.onmousedown = (e) => e.preventDefault();
-    li.onclick = () => choose(vid(v));
-    li.onmousemove = () => setActive(i, false);
-    ul.appendChild(li);
-  });
-  const sel = shown.findIndex((v) => vid(v).toLowerCase() === cur);
-  setActive(sel >= 0 ? sel : 0, true);
-}
-
-function setActive(i, scroll) {
-  activeIdx = Math.max(0, Math.min(shown.length - 1, i));
-  [...$("voiceList").children].forEach((li, n) => li.classList.toggle("active", n === activeIdx));
-  const li = $("voiceList").children[activeIdx];
-  if (li && shown.length) {
-    $("voiceFilter").setAttribute("aria-activedescendant", li.id);
-    if (scroll) li.scrollIntoView({ block: "nearest" });
+function renderProviders() {
+  const box = $("providers");
+  box.replaceChildren();
+  for (const [id, p] of Object.entries(PRESETS)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "provider";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(id === current));
+    b.tabIndex = id === current ? 0 : -1;
+    b.innerHTML = '<b><span></span><i class="check"></i></b><span></span>';
+    b.querySelector("b span").textContent = p.label;
+    b.lastChild.textContent = p.desc || "";
+    b.onclick = () => chooseProvider(id);
+    b.onkeydown = (e) => {
+      const ids = Object.keys(PRESETS), step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      const nextId = ids[(ids.indexOf(id) + step + ids.length) % ids.length];
+      chooseProvider(nextId);
+      box.querySelector('[aria-checked="true"]').focus();
+    };
+    box.append(b);
   }
 }
 
-function choose(name) {
-  if (!name) return;
-  $("voice").value = name;
-  renderVoiceButton();
-  closePanel();
-  $("voiceBtn").focus();
+function chooseProvider(id) {
+  if (id === current) return;
+  store.profiles[current] = Object.fromEntries(FIELDS.map((f) => [f, profile[f]]));
+  current = id;
+  profile = profileFor(store, current);
+  modelPicker.close();
+  voicePicker.close();
+  fillForm();
+  save(0);
 }
 
-function preview(id) {
-  const v = voices().find((x) => vid(x) === id);
-  const override = { ...readForm(), voice: id, kind: PRESETS[current].kind, noKey: PRESETS[current].noKey };
-  chrome.runtime.sendMessage({
-    target: "background", type: "read",
-    text: `Hi, I'm ${v ? v.name : id}. This is how I sound.`, override
-  });
+function fillForm() {
+  const p = preset();
+  renderProviders();
+  $("apiKey").value = profile.apiKey || "";
+  $("keyField").hidden = !!p.noKey;
+  $("localHint").hidden = !p.noKey;
+  const hint = $("keyHint");
+  if (p.keyUrl) {
+    hint.innerHTML = 'Get a key at <a target="_blank" rel="noreferrer"></a>.';
+    hint.querySelector("a").href = p.keyUrl;
+    hint.querySelector("a").textContent = new URL(p.keyUrl).host;
+  } else {
+    hint.textContent = "Use the key from your provider, if it needs one.";
+  }
+  $("baseUrl").value = profile.baseUrl || "";
+  $("format").value = profile.format || "";
+  $("maxChars").value = profile.maxChars || "";
+  $("formatField").hidden = p.kind === "gemini";
+  modelPicker.refresh();
+  voicePicker.refresh();
+  checkAccess();
 }
 
-function wirePicker() {
-  $("voiceBtn").onclick = () => ($("voicePanel").hidden ? openPanel() : closePanel());
-  $("voiceBtn").onkeydown = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); openPanel(); } };
-  $("voiceFilter").oninput = renderList;
-
-  $("voiceFilter").onkeydown = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActive(activeIdx + 1, true); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActive(activeIdx - 1, true); }
-    else if (e.key === "Home") { e.preventDefault(); setActive(0, true); }
-    else if (e.key === "End") { e.preventDefault(); setActive(shown.length - 1, true); }
-    else if (e.key === "Enter") { e.preventDefault(); if (shown[activeIdx]) choose(vid(shown[activeIdx])); }
-    else if (e.key === "Escape") { e.preventDefault(); closePanel(); $("voiceBtn").focus(); }
-  };
-  $("voiceOther").onkeydown = (e) => {
-    if (e.key === "Enter") { e.preventDefault(); choose($("voiceOther").value.trim()); }
-    if (e.key === "Escape") { e.preventDefault(); closePanel(); $("voiceBtn").focus(); }
-  };
-  document.addEventListener("mousedown", (e) => { if (!$("picker").contains(e.target)) closePanel(); });
+function showSpeed(v) {
+  $("speed").value = v;
+  $("speedOut").textContent = Number(v).toFixed(2) + "×";
+  $("speed").style.setProperty("--fill", ((v - 0.5) / 1.5) * 100 + "%");
 }
 
-/* ---------- status + actions ---------- */
 function showStatus(st) {
   const state = (st && st.state) || "idle";
-  $("strip").dataset.state = state;
-  $("stripText").textContent =
-    state === "error" ? st.message : state === "loading" ? "Generating speech…" : state === "playing" ? "Reading aloud." : "Ready.";
+  running = state === "loading" || state === "playing" || state === "paused";
+  $("app").dataset.state = state;
+  $("stateText").textContent = { idle: "Ready", loading: "Preparing…", playing: "Reading", paused: "Paused", error: "Error" }[state] || "Ready";
+  $("errorBanner").hidden = state !== "error";
+  $("errorText").textContent = state === "error" ? st.message : "";
+  $("test").innerHTML = running ? ICON.stop + "<span>Stop</span>" : ICON.play + "<span>Play test</span>";
 }
 
-async function save() {
-  store.profiles[current] = readForm();
-  store.speed = Number($("speed").value);
-  await chrome.storage.local.set({
-    provider: current,
-    speed: store.speed,
-    profiles: store.profiles,
-    lastStatus: { state: "idle", message: "", at: Date.now() }
+function showShortcuts() {
+  const list = $("shortcutList");
+  chrome.commands.getAll().then((cmds) => {
+    list.replaceChildren();
+    const label = { "read-selection": "Read", "pause-resume": "Pause", "stop-reading": "Stop", "previous-sentence": "Back", "next-sentence": "Skip" };
+    for (const c of cmds) {
+      if (!label[c.name]) continue;
+      const span = document.createElement("span");
+      if (c.shortcut) {
+        for (const k of c.shortcut.split("+")) {
+          const kbd = document.createElement("kbd");
+          kbd.textContent = k;
+          span.append(kbd);
+        }
+        span.append(" " + label[c.name]);
+      } else {
+        span.textContent = label[c.name] + ": not set";
+      }
+      list.append(span);
+    }
   });
-  const s = $("saved");
-  s.classList.add("on");
-  setTimeout(() => s.classList.remove("on"), 1600);
 }
+
+// Plays text with the settings on screen (saved first, so the background uses them).
+async function speakSample(text, voice) {
+  const access = requestHostAccess(); // must start during the click
+  await saveNow();
+  if (!(await access)) return checkAccess();
+  const p = preset();
+  const override = voice ? { ...profile, voice, kind: p.kind, noKey: p.noKey } : null;
+  chrome.runtime.sendMessage({ target: "background", type: "read", text, override });
+}
+
+/* ---------- start ---------- */
 
 (async () => {
   store = await loadStore();
-  current = store.provider;
-  buildProviders();
-  wirePicker();
-  wireModelPicker();
-  fillForm();
-  $("speed").value = store.speed;
-  $("speedOut").textContent = Number(store.speed).toFixed(2) + "×";
-  $("speed").addEventListener("input", () => ($("speedOut").textContent = Number($("speed").value).toFixed(2) + "×"));
-  chrome.storage.local.get({ lastStatus: null }).then((s) => showStatus(s.lastStatus));
-  chrome.storage.onChanged.addListener((c) => { if (c.lastStatus) showStatus(c.lastStatus.newValue); });
+  current = store.provider in PRESETS ? store.provider : "groq";
+  profile = profileFor(store, current);
 
+  modelPicker = createPicker($("modelPicker"), {
+    labelId: "modelLabel", placeholder: "Search models", otherText: "Other model ID, then press Enter",
+    emptyText: "Type the model ID below.",
+    items: models, value: () => profile.model || "",
+    onChoose: (id) => { profile.model = id; save(); }
+  });
+  voicePicker = createPicker($("voicePicker"), {
+    labelId: "voiceLabel", placeholder: "Search voices", otherText: "Other voice name or ID, then press Enter",
+    emptyText: "Type the voice name below.",
+    items: voices, value: () => profile.voice || "",
+    onChoose: (id) => { profile.voice = id; save(); },
+    onPreview: (v) => speakSample(`Hi, I'm ${v.name}. This is how I sound.`, v.id),
+    onOpen: loadLiveVoices
+  });
+
+  fillForm();
+  showSpeed(store.speed);
+  $("underline").checked = store.underline;
+  $("follow").checked = store.follow;
+  $("follow").disabled = !store.underline;
+  showShortcuts();
+
+  chrome.storage.local.get({ lastStatus: null }).then((s) => showStatus(s.lastStatus));
+  chrome.storage.onChanged.addListener((c, area) => {
+    if (area !== "local") return;
+    if (c.lastStatus) showStatus(c.lastStatus.newValue);
+    if (c.speed && Number(c.speed.newValue) !== store.speed) { store.speed = Number(c.speed.newValue); showSpeed(store.speed); }
+    if (c.underline) { store.underline = c.underline.newValue; $("underline").checked = store.underline; $("follow").disabled = !store.underline; }
+  });
+
+  $("apiKey").oninput = () => { profile.apiKey = $("apiKey").value.trim(); delete live[current]; save(); };
+  $("baseUrl").oninput = () => { profile.baseUrl = $("baseUrl").value.trim(); delete live[current]; save(); };
+  $("baseUrl").onchange = checkAccess;
+  $("format").oninput = () => { profile.format = $("format").value.trim(); save(); };
+  $("maxChars").oninput = () => { profile.maxChars = Number($("maxChars").value) || preset().maxChars; save(); };
   $("reveal").onclick = () => {
     const show = $("apiKey").type === "password";
     $("apiKey").type = show ? "text" : "password";
     $("reveal").textContent = show ? "Hide" : "Show";
   };
-  $("save").onclick = save;
-  $("test").onclick = async () => {
-    await save();
-    chrome.runtime.sendMessage({ target: "background", type: "read", text: "Hello! This is a test of your text to speech setup." });
+  $("speed").oninput = () => showSpeed($("speed").value);
+  $("speed").onchange = () => { store.speed = Number($("speed").value); save(0); };
+  $("underline").onchange = () => { store.underline = $("underline").checked; $("follow").disabled = !store.underline; save(0); };
+  $("follow").onchange = () => { store.follow = $("follow").checked; save(0); };
+  $("accessBtn").onclick = async () => { await requestHostAccess(); checkAccess(); };
+  $("shortcutsBtn").onclick = () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+  $("test").onclick = () => {
+    if (running) return chrome.runtime.sendMessage({ target: "background", type: "stop" });
+    speakSample("Hello! This is a test of your text to speech setup.");
   };
-  $("stop").onclick = () => chrome.runtime.sendMessage({ target: "background", type: "stop" });
 })();

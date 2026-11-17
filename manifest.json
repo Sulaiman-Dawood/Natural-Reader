@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Natural Reader",
-  "version": "1.5.0",
+  "version": "1.6.0",
+  "minimum_chrome_version": "116",
   "description": "Read selected text aloud with your own Groq, Gemini, ElevenLabs, OpenRouter, OpenAI or custom text-to-speech API key.",
   "permissions": [
     "contextMenus",
@@ -18,6 +19,10 @@
     "https://api.elevenlabs.io/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -43,6 +48,18 @@
         "default": "Alt+Shift+X"
       },
       "description": "Stop reading"
+    },
+    "pause-resume": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Pause or resume reading"
+    },
+    "previous-sentence": {
+      "description": "Go back one sentence"
+    },
+    "next-sentence": {
+      "description": "Skip to the next sentence"
     }
   },
   "icons": {

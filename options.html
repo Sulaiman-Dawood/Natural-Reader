@@ -6,171 +6,240 @@
 <title>Natural Reader settings</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  main { max-width: 620px; margin: 40px auto 64px; padding: 0 20px; }
-  h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
-  .lede { margin: 0 0 20px; color: var(--muted); }
-
-  #strip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 10px;
-           background: var(--surface); border: 1px solid var(--line); margin-bottom: 16px; }
-  #strip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); margin-top: 6px; flex: none; }
-  #strip[data-state="playing"] .dot, #strip[data-state="loading"] .dot { background: var(--accent); }
-  #strip[data-state="error"] { border-color: var(--err); }
-  #strip[data-state="error"] .dot { background: var(--err); }
-  #strip span { overflow-wrap: anywhere; user-select: text; }
-
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 22px 22px; }
-  fieldset { border: 0; margin: 0; padding: 18px 0 4px; }
-  fieldset + fieldset { border-top: 1px solid var(--line); margin-top: 18px; }
-  legend { font-weight: 700; font-size: 15px; padding: 0; float: left; width: 100%; margin-bottom: 12px; }
-  fieldset > *:not(legend) { clear: both; }
-
-
-
-  .field { display: block; margin-top: 14px; }
-  .field > b { display: block; font-weight: 600; margin-bottom: 4px; }
-  .hint { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
-  input[type="text"], input[type="password"], input[type="number"], input:not([type]) {
-    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--field);
+  body {
+    background:
+      radial-gradient(900px 380px at 12% -120px, rgba(59, 91, 255, .13), transparent 70%),
+      radial-gradient(700px 320px at 95% -80px, rgba(106, 77, 255, .10), transparent 70%),
+      var(--bg);
+    background-repeat: no-repeat;
   }
-  .keyrow { display: flex; gap: 8px; }
-  .keyrow button { padding: 9px 12px; font-weight: 500; }
-  .speed { display: flex; align-items: center; gap: 12px; }
-  .speed input { flex: 1; accent-color: var(--accent); }
-  .speed output { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
-  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
-  summary { cursor: pointer; font-weight: 700; font-size: 15px; }
-  .actions { display: flex; gap: 8px; align-items: center; margin-top: 22px; flex-wrap: wrap; }
-  #saved { color: var(--ok); font-weight: 600; opacity: 0; transition: opacity .2s; }
-  #saved.on { opacity: 1; }
+  .app { max-width: 720px; margin: 0 auto; padding: 36px 20px 72px; display: grid; gap: 16px; }
 
+  .masthead { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .masthead img { border-radius: 12px; box-shadow: 0 8px 24px rgba(59, 91, 255, .35); }
+  .masthead .brand { flex: 1; min-width: 0; }
+  .masthead h1 { font-size: 24px; line-height: 1.2; letter-spacing: -.02em; }
+  .masthead p { color: var(--muted); }
+
+  .banner { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13.5px; }
+  .banner svg { width: 18px; height: 18px; margin-top: 1px; }
+  .banner span { flex: 1; overflow-wrap: anywhere; user-select: text; }
+  .banner.error { background: var(--err-soft); color: var(--err); }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); align-items: center; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 22px; box-shadow: var(--shadow); }
+  .card-head { margin-bottom: 16px; }
+  .card-head h2 { font-size: 16px; letter-spacing: -.01em; }
+  .card-head p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .providers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .provider {
+    display: grid; gap: 1px; text-align: left; padding: 11px 13px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--line-2); background: var(--surface); transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .provider:hover { border-color: var(--muted); }
+  .provider b { font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .provider > span { color: var(--muted); font-size: 12.5px; }
+  .provider .check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line-2); display: grid; place-items: center; }
+  .provider[aria-checked="true"] { border-color: var(--brand); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--brand) inset; }
+  .provider[aria-checked="true"] .check { background: var(--brand); border-color: var(--brand); }
+  .provider[aria-checked="true"] .check::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+
+  .field { display: grid; gap: 6px; margin-top: 16px; }
+  .field > label, .field > .label { font-weight: 600; font-size: 13px; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+  .note { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-2); font-size: 13px; }
+  .input-group { display: flex; gap: 8px; }
+  .slider { display: flex; align-items: center; gap: 14px; height: 40px; }
+  .slider output { min-width: 3.4em; text-align: right; font-weight: 600; color: var(--ink-2); }
+  .actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+
+  .toggle-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; cursor: pointer; }
+  .toggle-row + .toggle-row, .toggle-row + .shortcuts { border-top: 1px solid var(--line); }
+  .toggle-row div, .shortcuts div { flex: 1; display: grid; gap: 1px; }
+  .toggle-row span, .shortcuts span { color: var(--muted); font-size: 12.5px; }
+  .shortcuts { display: flex; align-items: center; gap: 16px; padding: 12px 0 0; }
+  #shortcutList { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  #shortcutList > span { display: inline-flex; gap: 3px; align-items: center; }
+
+  details.card { padding: 0; }
+  details.card > summary {
+    list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 22px; cursor: pointer; border-radius: var(--radius);
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary h2 { font-size: 16px; letter-spacing: -.01em; }
+  details.card > summary p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  details.card > summary svg { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
+  details.card[open] > summary svg { transform: rotate(180deg); }
+  details.card .body { padding: 0 22px 22px; margin-top: -16px; }
+
+  /* searchable picker */
   .picker { position: relative; }
-  .pickbtn { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px;
-             background: var(--field); font-weight: 400; }
-  .pickbtn .pn { font-weight: 700; }
-  .pickbtn .pt { color: var(--muted); flex: 1; }
-  .pickbtn .chev { color: var(--muted); flex: none; transition: transform .15s; }
-  .pickbtn[aria-expanded="true"] { border-color: var(--accent); }
-  .pickbtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
-  .pop { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); background: var(--surface);
-         border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(10,16,32,.22); overflow: hidden; }
-  .pop > input { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 11px 14px; }
-  .pop > input:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
-  #voiceList, #modelList, #providerList { list-style: none; margin: 0; padding: 4px; max-height: 270px; overflow-y: auto; }
-  #voiceList li, #modelList li, #providerList li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
-  #voiceList li.active, #modelList li.active, #providerList li.active { background: color-mix(in srgb, var(--accent) 13%, transparent); }
-  #voiceList li .vn, #modelList li .vn, #providerList li .vn { font-weight: 600; }
-  #voiceList li .vt, #modelList li .vt, #providerList li .vt { color: var(--muted); flex: 1; }
-  #voiceList li[aria-selected="true"] .vn::after, #modelList li[aria-selected="true"] .vn::after, #providerList li[aria-selected="true"] .vn::after { content: "  \2713"; color: var(--accent); font-weight: 700; }
-  #voiceList li.empty, #modelList li.empty, #providerList li.empty { color: var(--muted); cursor: default; }
-  .vp { padding: 4px 9px; font-size: 12px; font-weight: 600; border-radius: 999px; color: var(--accent); background: transparent; }
-  .other { border-top: 1px solid var(--line); padding: 8px; }
-  .other input { padding: 8px 10px; font-size: 13px; }
+  .pickbtn {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; height: 44px; padding: 0 12px 0 14px;
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pickbtn:hover { border-color: var(--muted); }
+  .pickbtn[aria-expanded="true"] { border-color: var(--brand); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .pickbtn .pn { font-weight: 600; }
+  .pickbtn .pt { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .pickbtn svg { width: 16px; height: 16px; color: var(--muted); transition: transform .15s; }
+  .pickbtn[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .pop {
+    position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-lg);
+    animation: pop-in .12s ease-out;
+  }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
+  .pop-search { width: 100%; height: 44px; padding: 0 14px; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+  .pop-search:focus { outline: none; }
+  .pop-list { list-style: none; margin: 0; padding: 6px; max-height: 280px; overflow-y: auto; }
+  .pop-list li { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 9px; cursor: pointer; }
+  .pop-list li.active { background: var(--accent-soft); }
+  .pop-list li .vn { font-weight: 600; }
+  .pop-list li .vt { color: var(--muted); flex: 1; font-size: 13px; }
+  .pop-list li[aria-selected="true"] .vn::after { content: "  ✓"; color: var(--accent); }
+  .pop-list li.empty { color: var(--muted); cursor: default; justify-content: center; font-size: 13px; }
+  .pop-list .vp {
+    display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: var(--surface); color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .pop-list .vp:hover { border-color: var(--accent); }
+  .pop-list .vp svg { width: 11px; height: 11px; }
+  .pop-other { border-top: 1px solid var(--line); padding: 8px; }
+  .pop-other .input { height: 36px; font-size: 13px; }
 
-  .tip { margin-top: 18px; color: var(--muted); font-size: 13px; }
-  kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--field); font: inherit; font-size: 12.5px; }
+  .foot { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+    display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px;
+    background: var(--ink); color: var(--bg); font-weight: 600; font-size: 13px; box-shadow: var(--shadow-lg);
+    transition: opacity .2s, transform .2s;
+  }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+  .toast svg { width: 15px; height: 15px; color: var(--ok); }
+
+  @media (max-width: 520px) {
+    .app { padding-top: 24px; }
+    .masthead { flex-wrap: wrap; }
+    .card { padding: 18px 16px; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>Natural Reader</h1>
-  <p class="lede">Read any selected text aloud using your own text-to-speech key or a local model.</p>
-
-  <div id="strip" data-state="idle"><i class="dot"></i><span id="stripText">Ready.</span></div>
-
-  <div class="panel">
-    <fieldset>
-      <legend>Provider</legend>
-      <div class="picker" id="providerPicker">
-        <button type="button" id="providerBtn" class="pickbtn" aria-haspopup="listbox" aria-expanded="false" aria-label="Provider">
-          <span class="pn" id="providerName"></span>
-          <span class="pt" id="providerTag"></span>
-          <svg class="chev" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="pop" id="providerPanel" hidden>
-          <input type="search" id="providerFilter" placeholder="Search providers" autocomplete="off" spellcheck="false"
-                 role="combobox" aria-controls="providerList" aria-expanded="true">
-          <ul id="providerList" role="listbox" aria-label="Providers"></ul>
-        </div>
-      </div>
-
-      <label class="field" id="keyRow">
-        <b>API key</b>
-        <div class="keyrow">
-          <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
-          <button type="button" id="reveal">Show</button>
-        </div>
-        <div class="hint" id="keyHint"></div>
-      </label>
-      <p class="hint" id="localHint" hidden>Runs on your computer, so no key is needed and your text never leaves it. Start a local voice server such as <a href="https://github.com/remsky/Kokoro-FastAPI" target="_blank" rel="noreferrer">Kokoro-FastAPI</a>, then check the address under Advanced.</p>
-
-      <div class="field" id="modelRow">
-        <b id="modelLabel">Model</b>
-        <div class="picker" id="modelPicker">
-          <button type="button" id="modelBtn" class="pickbtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="modelLabel modelBtn">
-            <span class="pn" id="modelName"></span>
-            <span class="pt" id="modelTag"></span>
-            <svg class="chev" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <div class="pop" id="modelPanel" hidden>
-            <input type="search" id="modelFilter" placeholder="Search models" autocomplete="off" spellcheck="false"
-                   role="combobox" aria-controls="modelList" aria-expanded="true">
-            <ul id="modelList" role="listbox" aria-label="Models"></ul>
-            <div class="other"><input type="text" id="modelOther" placeholder="Other model ID, then press Enter" autocomplete="off" spellcheck="false"></div>
-          </div>
-        </div>
-        <input id="model" type="text" spellcheck="false" placeholder="Model ID">
-      </div>
-    </fieldset>
-
-
-    <fieldset>
-      <legend>Narrator</legend>
-      <div class="field" style="margin-top:0">
-        <b id="voiceLabel">Voice</b>
-        <div class="picker" id="picker">
-          <button type="button" id="voiceBtn" class="pickbtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="voiceLabel voiceBtn">
-            <span class="pn" id="voiceName"></span>
-            <span class="pt" id="voiceTag"></span>
-            <svg class="chev" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <div class="pop" id="voicePanel" hidden>
-            <input type="search" id="voiceFilter" placeholder="Search voices" autocomplete="off" spellcheck="false"
-                   role="combobox" aria-controls="voiceList" aria-expanded="true">
-            <ul id="voiceList" role="listbox" aria-label="Voices"></ul>
-            <div class="other"><input type="text" id="voiceOther" placeholder="Other voice name, then press Enter" autocomplete="off" spellcheck="false"></div>
-          </div>
-        </div>
-        <input id="voice" type="text" spellcheck="false" placeholder="Voice name">
-      </div>
-      <label class="field">
-        <b>Speed</b>
-        <div class="speed">
-          <input id="speed" type="range" min="0.5" max="2" step="0.05">
-          <output id="speedOut"></output>
-        </div>
-      </label>
-    </fieldset>
-
-    <details>
-      <summary>Advanced</summary>
-      <label class="field"><b>Base URL</b><input id="baseUrl" type="text" spellcheck="false"></label>
-
-      <label class="field" id="formatRow"><b>Audio format</b><input id="format" type="text" spellcheck="false">
-        <span class="hint">wav for Groq. mp3 for most others. ElevenLabs uses names like mp3_44100_128.</span></label>
-      <label class="field"><b>Characters per request</b><input id="maxChars" type="number" min="50" max="4000">
-        <span class="hint">Longer text is split into pieces this size and played in order.</span></label>
-    </details>
-
-    <div class="actions">
-      <button class="primary" id="save">Save changes</button>
-      <button id="test">Play test</button>
-      <button id="stop">Stop</button>
-      <span id="saved">Saved</span>
+<div class="app" id="app" data-state="idle">
+  <header class="masthead">
+    <img src="icons/icon48.png" width="44" height="44" alt="">
+    <div class="brand">
+      <h1>Natural Reader</h1>
+      <p>Listen to any page in a natural voice.</p>
     </div>
+    <span class="pill" role="status"><i class="dot"></i><span id="stateText">Ready</span></span>
+  </header>
+
+  <div class="banner error" id="errorBanner" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+    <span id="errorText"></span>
+  </div>
+  <div class="banner warn" id="accessBanner" hidden>
+    <span id="accessText"></span>
+    <button type="button" class="btn small" id="accessBtn">Allow access</button>
   </div>
 
-  <p class="tip">Right-click a page and choose <b>Read aloud</b>. It reads your selection, or the whole page if nothing is selected. Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>. Stop with <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>. Change shortcuts at <b>brave://extensions/shortcuts</b>.</p>
-</main>
+  <section class="card">
+    <div class="card-head">
+      <h2>Voice service</h2>
+      <p>Who turns your text into speech. Keys stay in this browser and only go to the service you pick.</p>
+    </div>
+    <div class="providers" id="providers" role="radiogroup" aria-label="Voice service"></div>
+
+    <div class="field" id="keyField">
+      <label for="apiKey">API key</label>
+      <div class="input-group">
+        <input id="apiKey" class="input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
+        <button type="button" class="btn" id="reveal">Show</button>
+      </div>
+      <p class="hint" id="keyHint"></p>
+    </div>
+    <p class="note" id="localHint" hidden>Runs on your computer, so no key is needed and your text never leaves it. Start a local voice server such as <a href="https://github.com/remsky/Kokoro-FastAPI" target="_blank" rel="noreferrer">Kokoro-FastAPI</a>, then check its address under Advanced.</p>
+
+    <div class="field">
+      <span class="label" id="modelLabel">Model</span>
+      <div id="modelPicker"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Narrator</h2>
+      <p>Pick a voice and how fast it reads. Press Preview to hear a voice before choosing it.</p>
+    </div>
+    <div class="field" style="margin-top:0">
+      <span class="label" id="voiceLabel">Voice</span>
+      <div id="voicePicker"></div>
+    </div>
+    <div class="field">
+      <label for="speed">Speed</label>
+      <div class="slider">
+        <input id="speed" type="range" min="0.5" max="2" step="0.05">
+        <output id="speedOut" for="speed"></output>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="test"></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>While reading</h2>
+      <p>Follow along on the page as the voice reads.</p>
+    </div>
+    <label class="toggle-row">
+      <div><b>Underline the sentence being read</b><span>Marks the current sentence on the page, without changing the page.</span></div>
+      <input id="underline" type="checkbox" class="switch" role="switch">
+    </label>
+    <label class="toggle-row">
+      <div><b>Scroll to follow</b><span>Keeps the underlined sentence in view.</span></div>
+      <input id="follow" type="checkbox" class="switch" role="switch">
+    </label>
+    <div class="shortcuts">
+      <div><b>Keyboard shortcuts</b><span id="shortcutList"></span></div>
+      <button type="button" class="btn small" id="shortcutsBtn">Change</button>
+    </div>
+  </section>
+
+  <details class="card">
+    <summary>
+      <div><h2>Advanced</h2><p>Server address, audio format and request size.</p></div>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
+    </summary>
+    <div class="body">
+      <div class="field">
+        <label for="baseUrl">Base URL</label>
+        <input id="baseUrl" class="input" type="text" spellcheck="false">
+      </div>
+      <div class="field" id="formatField">
+        <label for="format">Audio format</label>
+        <input id="format" class="input" type="text" spellcheck="false">
+        <p class="hint">wav for Groq, mp3 for most others. ElevenLabs uses names like mp3_44100_128.</p>
+      </div>
+      <div class="field">
+        <label for="maxChars">Characters per request</label>
+        <input id="maxChars" class="input" type="number" min="50" max="4000">
+        <p class="hint">Longer text is split into pieces up to this size and played in order.</p>
+      </div>
+    </div>
+  </details>
+
+  <p class="foot">Changes save automatically.</p>
+</div>
+<div class="toast" id="toast" aria-live="polite">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+  <span>Saved</span>
+</div>
 <script src="shared.js"></script>
 <script src="options.js"></script>
 </body>

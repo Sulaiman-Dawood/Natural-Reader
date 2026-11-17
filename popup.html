@@ -1,35 +1,96 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<title>Natural Reader</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  body { width: 320px; background: var(--surface); }
-  main { padding: 14px; }
-  .display { background: var(--display); color: var(--display-ink); border-radius: 12px; padding: 14px 16px 16px; }
-  #status { margin: 8px 0 0; text-align: center; min-height: 3em; overflow-wrap: anywhere; user-select: text; }
-  [data-state="error"] #status { color: #ff9aa1; text-align: left; }
-  #meta { margin: 10px 2px 0; color: var(--muted); font-size: 12.5px; }
-  .row { display: flex; gap: 8px; margin-top: 12px; }
-  .row button { white-space: nowrap; padding: 9px 12px; }
-  .row #read { flex: 2; }
-  .row #stop { flex: 1; }
-  footer { margin-top: 12px; text-align: center; }
-  footer a { color: var(--muted); font-size: 13px; }
+  body { width: 344px; background: var(--bg); }
+  main { padding: 14px; display: grid; gap: 12px; }
+
+  .top { display: flex; align-items: center; gap: 10px; }
+  .top img { border-radius: 9px; box-shadow: var(--shadow-sm); }
+  .top .title { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+  .top b { font-size: 15px; letter-spacing: -.01em; }
+  #meta { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #meta.warn { color: var(--warn); }
+
+  .stage {
+    position: relative; overflow: hidden; border-radius: var(--radius); padding: 14px 16px 16px;
+    color: #fff; background: radial-gradient(120% 140% at 0% 0%, #5470ff 0%, #3b5bff 38%, #4a2fd9 100%);
+    box-shadow: 0 10px 30px rgba(59, 91, 255, .30);
+  }
+  .stage .wave { color: #fff; }
+  #status {
+    min-height: 3.1em; margin-top: 6px; text-align: center; font-size: 13.5px; line-height: 1.45;
+    color: rgba(255, 255, 255, .92); overflow-wrap: anywhere; user-select: text;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  [data-state="playing"] #status { font-weight: 500; }
+  [data-state="error"] .stage { background: linear-gradient(135deg, #3a1f2b, #2a1b33); box-shadow: none; }
+  [data-state="error"] #status { color: #ffc2c8; text-align: left; -webkit-line-clamp: 6; }
+
+  .transport { display: flex; gap: 8px; }
+  #toggle { flex: 1; height: 46px; font-size: 15px; border-radius: 13px; }
+  .transport .icon-btn { width: 46px; height: 46px; border-radius: 13px; }
+  .transport .icon-btn:disabled { opacity: .4; cursor: default; border-color: var(--line-2); transform: none; }
+  #progress { color: rgba(255, 255, 255, .72); font-size: 11.5px; text-align: center; margin-top: 4px; font-variant-numeric: tabular-nums; min-height: 1.4em; }
+  [data-state="paused"] .wave i { height: var(--h); opacity: .5; }
+
+  .controls { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 14px; }
+  .row { display: flex; align-items: center; gap: 12px; min-height: 46px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row > span { flex: none; font-weight: 600; font-size: 13px; }
+  .row .grow { flex: 1; }
+  #speedOut { min-width: 3.4em; text-align: right; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+
+  .keys { color: var(--muted); font-size: 12px; text-align: center; display: flex; gap: 6px 12px; justify-content: center; flex-wrap: wrap; }
+  .keys span { display: inline-flex; align-items: center; gap: 4px; }
+  .keys button { border: 0; background: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 0; }
 </style>
 </head>
 <body>
 <main id="root" data-state="idle">
-  <section class="display">
+  <header class="top">
+    <img src="icons/icon32.png" width="32" height="32" alt="">
+    <div class="title"><b>Natural Reader</b><span id="meta"></span></div>
+    <button class="btn ghost icon-btn" id="settings" title="Settings" aria-label="Open settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+    </button>
+  </header>
+
+  <section class="stage">
     <div class="wave" id="wave" aria-hidden="true"></div>
     <p id="status" role="status" aria-live="polite"></p>
+    <p id="progress"></p>
   </section>
-  <p id="meta"></p>
-  <div class="row">
-    <button id="read" class="primary">Read aloud</button>
-    <button id="stop">Stop</button>
+
+  <div class="transport">
+    <button class="btn icon-btn" id="prev" title="Previous sentence (←)" aria-label="Previous sentence">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="2.6" height="14" rx="1.2"/><path d="M19 6.2v11.6a1 1 0 0 1-1.55.83L9.4 13.03a1.25 1.25 0 0 1 0-2.06l8.05-5.6A1 1 0 0 1 19 6.2Z"/></svg>
+    </button>
+    <button id="toggle" class="btn primary"></button>
+    <button class="btn icon-btn" id="next" title="Next sentence (→)" aria-label="Next sentence">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="16.4" y="5" width="2.6" height="14" rx="1.2"/><path d="M5 6.2v11.6a1 1 0 0 0 1.55.83l8.05-5.6a1.25 1.25 0 0 0 0-2.06L6.55 5.37A1 1 0 0 0 5 6.2Z"/></svg>
+    </button>
+    <button class="btn icon-btn" id="stop" title="Stop" aria-label="Stop">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+    </button>
   </div>
-  <footer><a href="#" id="settings">Settings</a></footer>
+
+  <section class="controls">
+    <label class="row">
+      <span>Speed</span>
+      <input id="speed" class="grow" type="range" min="0.5" max="2" step="0.05" aria-label="Reading speed">
+      <output id="speedOut" for="speed"></output>
+    </label>
+    <label class="row">
+      <span class="grow">Underline as it reads</span>
+      <input id="underline" type="checkbox" class="switch" role="switch">
+    </label>
+  </section>
+
+  <p class="keys" id="keys"></p>
 </main>
 <script src="shared.js"></script>
 <script src="popup.js"></script>

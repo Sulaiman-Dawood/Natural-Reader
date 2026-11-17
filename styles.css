@@ -1,68 +1,168 @@
+/* Natural Reader: shared design tokens and components for the popup and Settings. */
+
 :root {
   color-scheme: light dark;
-  --bg: #eef1f5;
+  --brand: #3b5bff;
+  --brand-2: #6a4dff;
+  --bg: #f3f5fb;
   --surface: #ffffff;
-  --ink: #172033;
-  --muted: #5b6677;
-  --line: #d5dbe5;
-  --field: #f6f8fb;
-  --accent: #2447f5;
-  --accent-ink: #ffffff;
-  --ok: #137a4b;
-  --err: #c4262e;
-  --display: #0f1626;
-  --display-ink: #e7ebf3;
-  --wave: #7f98ff;
+  --surface-2: #f2f4fa;
+  --surface-3: #e9ecf6;
+  --ink: #111529;
+  --ink-2: #3a4060;
+  --muted: #6a7090;
+  --line: #e3e6f0;
+  --line-2: #d2d6e4;
+  --accent: #3b5bff;
+  --accent-soft: rgba(59, 91, 255, .10);
+  --ok: #12895a;
+  --warn: #9a5b00;
+  --warn-soft: rgba(230, 150, 20, .12);
+  --err: #cf2f3f;
+  --err-soft: rgba(207, 47, 63, .09);
+  --shadow-sm: 0 1px 2px rgba(17, 21, 41, .06);
+  --shadow: 0 1px 2px rgba(17, 21, 41, .04), 0 8px 28px rgba(17, 21, 41, .07);
+  --shadow-lg: 0 24px 60px rgba(17, 21, 41, .20);
+  --radius: 16px;
+  --radius-sm: 11px;
+  --font: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f131b;
-    --surface: #171c27;
-    --ink: #e7ebf3;
-    --muted: #98a2b5;
-    --line: #2a3242;
-    --field: #0f131b;
-    --accent: #8aa2ff;
-    --accent-ink: #0f131b;
-    --ok: #5cd59a;
-    --err: #ff7b84;
-    --display: #0b0e14;
+    --bg: #0b0d15;
+    --surface: #141725;
+    --surface-2: #1a1e2f;
+    --surface-3: #232840;
+    --ink: #eceefa;
+    --ink-2: #c4c8de;
+    --muted: #8c92b2;
+    --line: #242941;
+    --line-2: #323853;
+    --accent: #8da0ff;
+    --accent-soft: rgba(120, 140, 255, .14);
+    --ok: #4cd394;
+    --warn: #f2b955;
+    --warn-soft: rgba(242, 185, 85, .12);
+    --err: #ff7383;
+    --err-soft: rgba(255, 115, 131, .12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+    --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
   }
 }
+
 * { box-sizing: border-box; }
+html, body { margin: 0; }
 body {
-  margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 14px/1.5 "Segoe UI Variable Text", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  font: 14px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 button, input, select { font: inherit; color: inherit; }
-a { color: var(--accent); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+h1, h2, h3, p { margin: 0; }
+svg { flex: none; }
 
-button {
-  padding: 9px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  cursor: pointer;
-  font-weight: 600;
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 38px; padding: 0 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line-2); background: var(--surface); color: var(--ink);
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .06s, filter .15s;
 }
-button:hover { border-color: var(--muted); }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-button.primary:hover { filter: brightness(1.08); }
+.btn:hover { border-color: var(--muted); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 16px; height: 16px; }
+.btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn.primary {
+  border-color: transparent; color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  box-shadow: 0 6px 20px rgba(59, 91, 255, .32);
+}
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn.ghost:hover { background: var(--surface-2); }
+.icon-btn { width: 36px; height: 36px; padding: 0; }
+.icon-btn svg { width: 18px; height: 18px; }
 
-/* waveform */
-.wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 56px; }
+/* ---------- form controls ---------- */
+.input {
+  width: 100%; height: 40px; padding: 0 12px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  background: var(--surface); transition: border-color .15s, box-shadow .15s;
+}
+.input::placeholder { color: var(--muted); }
+.input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+input.switch {
+  appearance: none; position: relative; flex: none; margin: 0;
+  width: 42px; height: 24px; border-radius: 999px; cursor: pointer;
+  background: var(--line-2); transition: background .2s;
+}
+input.switch::before {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s;
+}
+input.switch:checked { background: var(--brand); }
+input.switch:checked::before { transform: translateX(18px); }
+input.switch:disabled { opacity: .45; cursor: default; }
+
+input[type="range"] {
+  appearance: none; width: 100%; height: 6px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(to right, var(--brand) var(--fill, 33%), var(--surface-3) var(--fill, 33%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--brand); box-shadow: var(--shadow-sm);
+  transition: transform .12s;
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.15); }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+output { font-variant-numeric: tabular-nums; }
+
+kbd {
+  display: inline-block; min-width: 22px; padding: 1px 6px; text-align: center;
+  border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 6px;
+  background: var(--surface); font: 600 11.5px/1.5 var(--font); color: var(--ink-2);
+}
+
+/* ---------- status pill ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px;
+  border-radius: 999px; background: var(--surface-2); color: var(--ink-2);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+[data-state="loading"] .pill .dot { background: var(--warn); animation: blink 1s ease-in-out infinite; }
+[data-state="playing"] .pill .dot { background: var(--ok); animation: blink 1.4s ease-in-out infinite; }
+[data-state="paused"] .pill .dot { background: var(--warn); }
+[data-state="error"] .pill { background: var(--err-soft); color: var(--err); }
+[data-state="error"] .pill .dot { background: var(--err); }
+@keyframes blink { 50% { opacity: .35; } }
+
+/* ---------- waveform ---------- */
+.wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 48px; }
 .wave i {
-  width: 4px; height: 6px; border-radius: 2px; background: var(--wave);
-  transition: height .25s, background .25s;
+  width: 4px; height: 6px; border-radius: 2px; background: currentColor; opacity: .55;
+  transition: height .25s, opacity .25s;
 }
-[data-state="playing"] .wave i { animation: bar 1000ms ease-in-out infinite; animation-delay: calc(var(--i) * -83ms); }
-[data-state="loading"] .wave i { animation: pulse 1100ms ease-in-out infinite; animation-delay: calc(var(--i) * 45ms); opacity: .7; }
-[data-state="error"] .wave i { background: var(--err); height: 4px; }
+[data-state="playing"] .wave i {
+  opacity: 1; animation: bar 1000ms ease-in-out infinite; animation-delay: calc(var(--i) * -83ms);
+}
+[data-state="loading"] .wave i { animation: pulse 1100ms ease-in-out infinite; animation-delay: calc(var(--i) * 45ms); }
+[data-state="error"] .wave i { height: 4px; opacity: .35; }
 @keyframes bar { 0%, 100% { height: 6px; } 50% { height: var(--h); } }
 @keyframes pulse { 0%, 100% { height: 6px; } 50% { height: 14px; } }
+
 @media (prefers-reduced-motion: reduce) {
+  *, *::before { transition: none !important; }
   [data-state="playing"] .wave i, [data-state="loading"] .wave i { animation: none; height: var(--h); }
+  .pill .dot { animation: none !important; }
 }

@@ -145,11 +145,17 @@ const PRESETS = {
 };
 
 async function loadStore() {
-  return chrome.storage.local.get({ provider: "groq", speed: 1, profiles: {} });
+  return chrome.storage.local.get({ provider: "groq", speed: 1, profiles: {}, underline: true, follow: true });
 }
 
 function profileFor(store, provider) {
   return { apiKey: "", ...PRESETS[provider], ...(store.profiles[provider] || {}) };
+}
+
+// A voice's display name: ElevenLabs voices are stored by ID, others by name.
+function voiceName(provider, voice) {
+  const v = (PRESETS[provider]?.voices || []).find((x) => (x.id || x.name) === voice);
+  return v ? v.name : voice;
 }
 
 async function loadSettings() {
